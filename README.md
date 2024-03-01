@@ -17,8 +17,5 @@ It is imperative that the metadata file is formatted correctly. See below:
 | C:/usr/dir/sample_01.h5 | sample_01 | aged | male | control |
 | C:/usr/dir/sample_02.h5 | sample_02 | aged | male | drug |
 | ... | ... | ... | ... | ... |
-<<<<<<< HEAD
-  
-Save as .csv file
-=======
->>>>>>> 835d0c40b46eeef82a684f6567915af87c1d660b
+
+Format with the headers exactly as seen above. Save as .csv file.
