@@ -17,9 +17,3 @@ It is imperative that the metadata file is formatted correctly. See below:
 | C:/usr/dir/sample_01.h5 | sample_01 | aged | male | control |
 | C:/usr/dir/sample_02.h5 | sample_02 | aged | male | drug |
 | ... | ... | ... | ... | ... |
-
-| Header 1 | Header 2 | Header 3 |
-|---|---|---|
-| Content 1, row 1 | Content 2, row 1 | Content 3, row 1 |
-| Content 1, row 2 | Content 2, row 2 | Content 3, row 2 |
-| ... | ... | ... |
