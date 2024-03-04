@@ -21,11 +21,6 @@ library(dplyr)
 library(umap)
 library(patchwork)
 
-# Take path to CellRanger .h5 files from command line
-# path2files <- readline("Enter the path to the directory containing your count files: ")
-# files <- list.files(path = path2files)
-# dataset <- c()
-
 # Take metadata file from command line
 metadata <- readline("Enter the path to your metadata file: ")
 if (!file.exists(metadata)) {
@@ -42,7 +37,8 @@ while (i <= length(metadata_df$file_path)) {
 
     # Create Seurat object
     seurat <- CreateSeuratObject(counts = cts, min.cells = 3, min.features = 200)
-    seurat@meta.data$orig.ident <- plyr::mapvalues(seurat@meta.data$orig.ident, from = "SeuratProject", to = sample_name)
+    seurat@meta.data$orig.ident <- plyr::mapvalues(seurat@meta.data$orig.ident,
+                                    from = "SeuratProject", to = sample_name)
     assign(sample_name, seurat)
     i <- i + 1
 } ## TESTED UNTIL THIS POINT
@@ -50,13 +46,17 @@ while (i <= length(metadata_df$file_path)) {
 merged_seurat <- merge()
 
 # Add metadata to the merged Seurat object
-sample_labels <- sample(x = metadata_df$sample_name, size = ncol(x = merged_seurat), replace = TRUE)
+sample_labels <- sample(x = metadata_df$sample_name,
+        size = ncol(x = merged_seurat), replace = TRUE)
 merged_seurat$sample <- sample_labels
-age_labels <- sample(x = metadata_df$age, size = ncol(merged_seurat), replace = TRUE)
+age_labels <- sample(x = metadata_df$age,
+        size = ncol(merged_seurat), replace = TRUE)
 merged_seurat$age <- age_labels
-sex_labels <- sample(x = metadata_df$sex, size = ncol(merged_seurat), replace = TRUE)
+sex_labels <- sample(x = metadata_df$sex,
+        size = ncol(merged_seurat), replace = TRUE)
 merged_seurat$sex <- sex_labels
-treamtent_labels <- sample(x = metadata_df$treatment, size = ncol(merged_seurat), replace = TRUE)
+treamtent_labels <- sample(x = metadata_df$treatment,
+        size = ncol(merged_seurat), replace = TRUE)
 merged_seurat <- treamtent_labels
 
 # remove unnecessary variables from the environment
@@ -71,3 +71,63 @@ if (!dir.exists(directory_path)) {
 merged_seurat$sample <- rownames(merged_seurat@meta.data)
 merged_seurat[["percent.mt"]] <- PercentageFeatureSet(merged_seurat, pattern = "^MT-")
 merged_seurat[["percent.rb"]] <- PercentageFeatureSet(merged_seurat, pattern = "^RP[SL]")
+
+# Visualize QC metrics
+pdf(file = "output/QC_Results/QCmetrics.pdf")
+par(mfrow = c(3,2))
+VlnPlot(merged_seurat, group.by = "orig.ident", 
+    features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), ncol = 2)
+FeatureScatter(merged_seurat, feature1 = "nCount_RNA", feature2 = "percent.mt")
+FeatureScatter(merged_seurat, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+dev.off()
+
+# Filter and normalize the data
+merged_filtered <- subset(merged_seurat, subset = nFeature_RNA > 200 & nFeature_RNA < 7500 & percent.mt < 5)
+merged_filtered <- NormalizeData(merged_filtered, normalization.method = "LogNormalize", scale.factor = 10000)
+
+# Create output directory for results
+directory_path <- file.path("output", "Clustering_Results")
+if (!dir.exists(directory_path)) {
+    dir.create(directory_path)
+}
+
+# Identify highly variable features
+merged_filtered <- FindVariableFeatures(merged_filtered, selection.method = "vst", nfeatures = 2000)
+top10 <- head(VariableFeatures(merged_filtered))
+pdf(file = "output/Clustering_Results/variable_features.pdf")
+par(mfrow = c(1,2))
+plot1 <- VariableFeaturesPlot(merged_filtered)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1
+plot2
+dev.off()
+
+# Scaling the data
+all.genes <- rownames(merged_filtered)
+merged_filtered <- ScaleData(merged_filtered, features = all.genes)
+
+# Perform linear dimensional reduction
+merged_filtered <- RunPCA(merged_filtered, 
+    features = VariableFeatures(object = merged_filtered))
+
+pdf(file = "output/Clustering_Results/pca.pdf")
+print(merged_filtered[["pca"]], dims = 1:5, nfeatures = 5)
+VizDimLoadings(merged_filtered, dims = 1:15, reduction = "pca")
+DimPlot(merged_filtered, reduction = "pca") + NoLegend()
+DimHeatmap(merged_filtered, dims = 1, cells = 500, balanced = TRUE)
+DimHeatmap(merged_filtered, dims = 1:15, cells = 500, balanced = TRUE)
+Elbowplot(merged_filtered)
+dev.off()
+
+# Cluster the cells
+merged_filtered <- FindNeighbors(merged_filtered, dims = 1:13)
+merged_filtered <- FindClusters(merged_filtered, resolution = 0.5)
+
+# Run non-linear dimensional reduction (UMAP)
+merged_umap <- RunUMAP(merged_filtered, dims = 1:12)
+joined_umap <- JoinLayers(object = merged_umap, assay = "RNA")
+remove(merged_umap, merged_filtered, merged_seurat)
+
+pdf()
+
+dev.off()
