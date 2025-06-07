@@ -8,7 +8,7 @@
 
 #### Set-up:
 1. Clone git repository locally  
-`git clone https://github.com/Jensen416/scRNAseq.git`
+`git clone https://github.com/DaeJens/scRNAseq.git`
 2. Create metadata file  
 It is imperative that the metadata file is formatted correctly. See below:
 
